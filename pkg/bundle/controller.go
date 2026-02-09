@@ -162,7 +162,6 @@ func addBundleController(
 	// Only reconcile config maps that match the well known name
 	controller := ctrl.NewControllerManagedBy(mgr).
 		Named("bundles").
-
 		////// Targets //////
 
 		// Reconcile a Bundle on events against a ConfigMap that it

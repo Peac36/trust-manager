@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"fmt"
 
+	collectors "github.com/cert-manager/trust-manager/pkg/metrics/Collectors"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	metricServer "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -95,6 +97,13 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to create manager: %w", err)
 			}
 
+			// register collector intro manager metric server
+			metricServer.Registry.MustRegister(collectors.NewBundleCollector(log, mgr.GetClient()))
+
+			if err != nil {
+				return fmt.Errorf("failed to register metrics handler: %w", err)
+			}
+
 			if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
 				return fmt.Errorf("failed to add webhook ready check: %v", err)
 			}
@@ -110,7 +119,7 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to register Bundle controller: %w", err)
 			}
 
-			// Register webhook handlers with manager.
+			// addColector webhook handlers with manager.
 			log.Info("registering webhook endpoints")
 			if err := webhook.SetupWebhookWithManager(mgr); err != nil {
 				return fmt.Errorf("failed to register webhook: %w", err)
