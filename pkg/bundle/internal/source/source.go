@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -72,10 +70,10 @@ func (b *BundleBuilder) BuildBundle(ctx context.Context, sources []trustapi.Bund
 
 		switch {
 		case source.ConfigMap != nil:
-			certSource = &configMapBundleSource{b.Reader, b.Namespace, source.ConfigMap}
+			certSource = &configMapBundleSource{ConfigMapGetter{Client: b.Reader, Namespace: b.Namespace}, source.ConfigMap}
 
 		case source.Secret != nil:
-			certSource = &secretBundleSource{b.Reader, b.Namespace, source.Secret}
+			certSource = &secretBundleSource{SecretGetter{Client: b.Reader, Namespace: b.Namespace}, source.Secret}
 
 		case source.InLine != nil:
 			certSource = &inlineBundleSource{*source.InLine}
@@ -133,46 +131,18 @@ func (s defaultCAsBundleSource) addToCertPool(_ context.Context, pool *util.Cert
 }
 
 type configMapBundleSource struct {
-	client.Reader
-	Namespace string
-	ref       *trustapi.SourceObjectKeySelector
+	getter ConfigMapGetter
+	ref    *trustapi.SourceObjectKeySelector
 }
 
 func (b configMapBundleSource) addToCertPool(ctx context.Context, pool *util.CertPool) error {
-	// this slice will contain a single ConfigMap if we fetch by name
-	// or potentially multiple ConfigMaps if we fetch by label selector
-	var configMaps []corev1.ConfigMap
+	configMaps, err := b.getter.Get(ctx, b.ref)
+	if err != nil {
+		return err
+	}
 
-	// if Name is set, we `Get` by name
-	if b.ref.Name != "" {
-		cm := corev1.ConfigMap{}
-		if err := b.Get(ctx, client.ObjectKey{
-			Namespace: b.Namespace,
-			Name:      b.ref.Name,
-		}, &cm); err != nil {
-			err = fmt.Errorf("failed to get ConfigMap %s/%s: %w", b.Namespace, b.ref.Name, err)
-			if apierrors.IsNotFound(err) {
-				err = NotFoundError{err}
-			}
-			return err
-		}
-
-		configMaps = []corev1.ConfigMap{cm}
-	} else {
-		// if Selector is set, we `List` by label selector
-		cml := corev1.ConfigMapList{}
-		selector, selectorErr := metav1.LabelSelectorAsSelector(b.ref.Selector)
-		if selectorErr != nil {
-			return fmt.Errorf("failed to parse label selector as Selector for ConfigMap in namespace %s: %w", b.Namespace, selectorErr)
-		}
-		if err := b.List(ctx, &cml, client.MatchingLabelsSelector{Selector: selector}); err != nil {
-			return fmt.Errorf("failed to get ConfigMapList: %w", err)
-		} else if len(cml.Items) == 0 {
-			logf.FromContext(ctx).Info(fmt.Sprintf("label selector %s for ConfigMap didn't match any resources", selector.String()))
-			return nil
-		}
-
-		configMaps = cml.Items
+	if len(configMaps) == 0 {
+		return nil
 	}
 
 	for _, cm := range configMaps {
@@ -196,46 +166,17 @@ func (b configMapBundleSource) addToCertPool(ctx context.Context, pool *util.Cer
 }
 
 type secretBundleSource struct {
-	client.Reader
-	Namespace string
-	ref       *trustapi.SourceObjectKeySelector
+	getter SecretGetter
+	ref    *trustapi.SourceObjectKeySelector
 }
 
 func (b secretBundleSource) addToCertPool(ctx context.Context, pool *util.CertPool) error {
-	// this slice will contain a single Secret if we fetch by name
-	// or potentially multiple Secrets if we fetch by label selector
-	var secrets []corev1.Secret
-
-	// if Name is set, we `Get` by name
-	if b.ref.Name != "" {
-		s := corev1.Secret{}
-		if err := b.Get(ctx, client.ObjectKey{
-			Namespace: b.Namespace,
-			Name:      b.ref.Name,
-		}, &s); err != nil {
-			err = fmt.Errorf("failed to get Secret %s/%s: %w", b.Namespace, b.ref.Name, err)
-			if apierrors.IsNotFound(err) {
-				err = NotFoundError{err}
-			}
-			return err
-		}
-
-		secrets = []corev1.Secret{s}
-	} else {
-		// if Selector is set, we `List` by label selector
-		sl := corev1.SecretList{}
-		selector, selectorErr := metav1.LabelSelectorAsSelector(b.ref.Selector)
-		if selectorErr != nil {
-			return fmt.Errorf("failed to parse label selector as Selector for Secret in namespace %s: %w", b.Namespace, selectorErr)
-		}
-		if err := b.List(ctx, &sl, client.MatchingLabelsSelector{Selector: selector}); err != nil {
-			return fmt.Errorf("failed to get SecretList: %w", err)
-		} else if len(sl.Items) == 0 {
-			logf.FromContext(ctx).Info(fmt.Sprintf("label selector %s for Secret didn't match any resources", selector.String()))
-			return nil
-		}
-
-		secrets = sl.Items
+	secrets, err := b.getter.Get(ctx, b.ref)
+	if err != nil {
+		return err
+	}
+	if len(secrets) == 0 {
+		return nil
 	}
 
 	for _, secret := range secrets {

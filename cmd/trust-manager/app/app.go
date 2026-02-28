@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"fmt"
 
-	collectors "github.com/cert-manager/trust-manager/pkg/metrics/Collectors"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -36,6 +35,7 @@ import (
 	"github.com/cert-manager/trust-manager/cmd/trust-manager/app/options"
 	trustapi "github.com/cert-manager/trust-manager/pkg/apis/trust/v1alpha1"
 	"github.com/cert-manager/trust-manager/pkg/bundle"
+	collectors "github.com/cert-manager/trust-manager/pkg/bundle/metrics"
 	"github.com/cert-manager/trust-manager/pkg/webhook"
 )
 
@@ -98,7 +98,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			// register collector intro manager metric server
-			metricServer.Registry.MustRegister(collectors.NewBundleCollector(log, mgr.GetClient()))
+			metricServer.Registry.MustRegister(collectors.NewBundleCollector(log, opts.Bundle, mgr.GetClient()))
 
 			if err != nil {
 				return fmt.Errorf("failed to register metrics handler: %w", err)
