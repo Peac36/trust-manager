@@ -345,7 +345,7 @@ func EventuallyBundleHasSyncedAllNamespacesContains(ctx context.Context, cl clie
 // CheckJKSFileSynced ensures that the given JKS data
 func CheckJKSFileSynced(jksData []byte, expectedPassword string, expectedCertPEMData string) error {
 	reader := bytes.NewReader(jksData)
-	certPool := util.NewCertPool(util.WithFilteredExpiredCerts(false))
+	certPool := util.NewCertPool(util.WithInclusionPolicy(util.NewInclusionPolicy(false, false)))
 
 	ks := jks.New()
 

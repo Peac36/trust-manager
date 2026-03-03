@@ -25,7 +25,7 @@ import (
 )
 
 func TestNewCertPool(t *testing.T) {
-	certPool := NewCertPool(WithFilteredExpiredCerts(false))
+	certPool := NewCertPool(WithInclusionPolicy(NewInclusionPolicy(false, false)))
 
 	assert.NotNil(t, certPool)
 }
@@ -76,7 +76,7 @@ func TestAppendCertFromPEM(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			certPool := NewCertPool(WithFilteredExpiredCerts(test.filterExpired))
+			certPool := NewCertPool(WithInclusionPolicy(NewInclusionPolicy(test.filterExpired, false)))
 
 			err := certPool.AddCertsFromPEM([]byte(test.pemData))
 			if test.expError != "" {
@@ -112,7 +112,7 @@ func TestAppendCACertFromPEM(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			certPool := NewCertPool(WithFilteredNonCaCerts(true))
+			certPool := NewCertPool(WithInclusionPolicy(NewInclusionPolicy(false, true)))
 
 			err := certPool.AddCertsFromPEM([]byte(test.pemData))
 			if test.expError != "" {

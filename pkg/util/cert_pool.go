@@ -23,7 +23,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/go-logr/logr"
 
@@ -34,24 +33,22 @@ import (
 type CertPool struct {
 	certificates map[[32]byte]*x509.Certificate
 
-	filterExpired bool
-
-	filterNonCACerts bool
+	inclusionPolicy *InclusionPolicy
 
 	logger logr.Logger
 }
 
 type Option func(*CertPool)
 
-func WithFilteredExpiredCerts(filterExpired bool) Option {
+func WithInclusionPolicy(policy *InclusionPolicy) Option {
 	return func(cp *CertPool) {
-		cp.filterExpired = filterExpired
+		cp.inclusionPolicy = policy
 	}
 }
 
 func WithFilteredNonCaCerts(filterNonCACerts bool) Option {
 	return func(cp *CertPool) {
-		cp.filterNonCACerts = filterNonCACerts
+		cp.inclusionPolicy.FilterNonCACerts = filterNonCACerts
 	}
 }
 
@@ -145,13 +142,7 @@ func (cp *CertPool) AddCertsFromPEM(pemData []byte) error {
 }
 
 func (cp *CertPool) AddCert(certificate *x509.Certificate) bool {
-	if cp.filterExpired && time.Now().After(certificate.NotAfter) {
-		cp.logger.Info("ignoring expired certificate", "certificate", certificate.Subject)
-		return false
-	}
-
-	if cp.filterNonCACerts && !certificate.IsCA {
-		cp.logger.Info("ignoring non-CA certificate", "certificate", certificate.Subject)
+	if cp.inclusionPolicy != nil && !cp.inclusionPolicy.ShouldInclude(certificate) {
 		return false
 	}
 

@@ -467,7 +467,7 @@ func TestFilterNonCACerts(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			certPool := util.NewCertPool(util.WithFilteredNonCaCerts(true))
+			certPool := util.NewCertPool(util.WithInclusionPolicy(util.NewInclusionPolicy(false, true)))
 			err := certPool.AddCertsFromPEM([]byte(strings.Join(test.bundle, "\n")))
 			if test.expError != "" {
 				assert.Error(t, err, test.expError)

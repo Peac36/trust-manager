@@ -59,9 +59,9 @@ type BundleBuilder struct {
 // Each source data is validated and pruned to ensure that all certificates within are valid.
 func (b *BundleBuilder) BuildBundle(ctx context.Context, sources []trustapi.BundleSource) (BundleData, error) {
 	var resolvedBundle BundleData
+
 	resolvedBundle.CertPool = util.NewCertPool(
-		util.WithFilteredExpiredCerts(b.FilterExpiredCerts),
-		util.WithFilteredNonCaCerts(b.FilterNonCACerts),
+		util.WithInclusionPolicy(util.NewInclusionPolicy(b.FilterExpiredCerts, b.FilterNonCACerts)),
 		util.WithLogger(logf.FromContext(ctx).WithName("cert-pool")),
 	)
 

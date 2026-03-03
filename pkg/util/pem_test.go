@@ -109,7 +109,7 @@ func TestAddCertsFromPEM(t *testing.T) {
 
 	for name, test := range cases {
 		t.Run(name, func(t *testing.T) {
-			certPool := NewCertPool(WithFilteredExpiredCerts(test.filterExpiredCerts))
+			certPool := NewCertPool(WithInclusionPolicy(NewInclusionPolicy(test.filterExpiredCerts, false)))
 
 			inputBundle := []byte(strings.Join(test.parts, "\n"))
 

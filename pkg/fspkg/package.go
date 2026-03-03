@@ -65,7 +65,7 @@ func (p *Package) Validate() error {
 	// Ignore the sanitized bundle here and preserve the bundle as-is.
 	// We'll sanitize later, when building a bundle on a reconcile.
 
-	certPool := util.NewCertPool(util.WithFilteredExpiredCerts(false))
+	certPool := util.NewCertPool(util.WithInclusionPolicy(util.NewInclusionPolicy(false, false)))
 
 	if err := certPool.AddCertsFromPEM([]byte(p.Bundle)); err != nil {
 		return fmt.Errorf("package bundle failed validation: %w", err)
